@@ -1,34 +1,75 @@
 const puppeteer = require("puppeteer");
-const fs = require("fs");
+const fs = require("fs").promises; // Use fs.promises for async file operations
 
 /**
- * ? @desc scrape data from a URL Https://xxx.com
+ * ? @desc get Popular categories URL "https://drinks.ng/"
  * @method GET
  * @param Url
  * @returns data
  */
-const fetchIt = async (url) => {
-  const browser = await puppeteer.launch({ headless: "new" });
+const scrapePopularCategories = async (url) => {
+  const browser = await puppeteer.launch({ headless: "new"});
   const page = await browser.newPage();
-  console.log("Navigating to url");
-  await page.goto(url); // navigate to the url
-  await page.screenshot({ path: "drink.png", fullPage: true }); // screenshot of website
-  console.log("Screenshot Saved");
-  const champagneTypes = await page.$$eval(
-    ".prods-grid-container .dng-product-card",
-    (data) =>
+
+  try {
+    console.log("Navigating to homePage URL");
+    await page.goto(url);
+    
+    const categories = await page.$$eval(".dng-product-category", (data) =>
       data.map((e) => ({
-        url: e.querySelector(".dng-product-card a").href,
-        title: e.querySelector(".dng-product-card span").innerText,
+        imageSrc: e.querySelector("img").getAttribute("src"),
+        link: e.getAttribute("href"),
+        drink_type: e.querySelector("span").textContent.trim(),
       }))
-  );
-  console.log(champagneTypes);
-  // save to a file
-  fs.writeFile("data.json", JSON.stringify(champagneTypes), (error) => {
-    if (error) throw error;
-    console.log("File saved successfully ");
-  });
-  await browser.close();
+    );
+
+    // Save categories to a file
+    await fs.writeFile("categories.json", JSON.stringify(categories));
+    console.log("Categories saved successfully");
+  } catch (error) {
+    console.error("Error while scraping popular categories:", error);
+  } finally {
+    await browser.close();
+  }
 };
 
-fetchIt("https://drinks.ng/champagne-bavwi/");
+/**
+ * ? @desc get champagne categories URL "https://drinks.ng/champagne-bavwi/"
+ * @method GET
+ * @param Url
+ * @returns data
+ */
+const scrapeChampagneTypes = async (url) => {
+  const browser = await puppeteer.launch({ headless: "new" });
+  const page = await browser.newPage();
+
+  try {
+    console.log("Navigating to champagne URL");
+    await page.goto(url);
+
+    // Take a screenshot
+    await page.screenshot({ path: "drink.png", fullPage: "new" });
+    console.log("Screenshot saved");
+
+    const champagneTypes = await page.$$eval(
+      ".prods-grid-container .dng-product-card",
+      (data) =>
+        data.map((e) => ({
+          url: e.querySelector(".dng-product-card a").href,
+          title: e.querySelector(".dng-product-card span").innerText,
+        }))
+    );
+
+    // Save champagne types to a file
+    await fs.writeFile("champagnetypes.json", JSON.stringify(champagneTypes));
+    console.log("Champagne types saved successfully");
+  } catch (error) {
+    console.error("Error while scraping champagne types:", error);
+  } finally {
+    await browser.close();
+  }
+};
+
+// Initialize functions
+scrapePopularCategories("https://drinks.ng/");
+scrapeChampagneTypes("https://drinks.ng/champagne-bavwi/");
